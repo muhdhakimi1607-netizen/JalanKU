@@ -6,11 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jalanku - Navigasi & Trafik Malaysia</title>
 
+    <!-- PWA Manifest Link -->
+    <link rel="manifest" href="manifest.json">
+
     <!-- Tetapan Web App / PWA -->
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Jalanku">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/854/854878.png">
 
     <!-- Tailwind CSS (CDN Percuma) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -78,7 +82,7 @@
             <button onclick="mulaAplikasi()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition active:scale-95 text-base cursor-pointer">
                 Mula Perjalanan <i class="fa-solid fa-arrow-right"></i>
             </button>
-            <span class="text-[11px] text-slate-500">Percuma Sepenuhnya • OpenStreetMap Edition</span>
+            <span class="text-[11px] text-slate-500">PWA Ready • OpenStreetMap Edition</span>
         </div>
     </div>
 
@@ -267,7 +271,7 @@
         </div>
     </div>
 
-    <!-- Leaflet JS (CDN Percuma) -->
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
@@ -356,7 +360,7 @@
             }
         }
 
-        // 📍 GEOLOCATION GPS REAL-TIME
+        // GPS REAL-TIME
         function mulaMembacaGPSRealTime() {
             if (navigator.geolocation) {
                 watchPositionId = navigator.geolocation.watchPosition(
@@ -450,7 +454,6 @@
             if (userCustomPin) userCustomPin.closePopup();
         }
 
-        // ENJIN OSRM ROUTING (PERCUMA)
         function kemaskiniLaluanNavigasi(sLat, sLng, dLat, dLng) {
             let profile = 'driving';
             if (activeTransportMode === 'motor') profile = 'bike';
@@ -496,7 +499,6 @@
                 });
         }
 
-        // 🚘 NAVIGASI MASA NYATA GPS
         function mulakanNavigasiLiveGPS() {
             if (!routePolyline || currentRouteSteps.length === 0) return;
 
@@ -627,7 +629,6 @@
                 });
         }
 
-        // 📍 FUNGSI PENTING: CARI LOKASI BERDEKATAN (NEAR ME)
         function cariKategoriBerdekatan(kategori) {
             categoryMarkers.forEach(m => map.removeLayer(m));
             categoryMarkers = [];
@@ -675,7 +676,6 @@
                 labelKat = 'Bengkel Kenderaan';
             }
 
-            // Radius Imbasan ~5km
             const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];node["amenity"="${amenityTag}"](${center.lat-0.04},${center.lng-0.04},${center.lat+0.04},${center.lng+0.04});out 25;`;
 
             fetch(overpassUrl)
@@ -766,7 +766,6 @@
             document.getElementById('route-info-box').classList.add('hidden');
         }
 
-        // 🔍 ENJIN CARIAN SOKONGAN "NEAR ME" TERBINA
         function handleSearchInput() {
             clearTimeout(searchTimeout);
             const query = document.getElementById('search-input').value.trim();
@@ -778,7 +777,6 @@
             }
 
             searchTimeout = setTimeout(() => {
-                // Pengesanan Kata Kunci "near me" atau "berdekatan"
                 if (query.toLowerCase().includes('near me') || query.toLowerCase().includes('berdekatan')) {
                     const cleanQuery = query.toLowerCase().replace('near me', '').replace('berdekatan', '').trim();
                     if (cleanQuery.includes('petrol') || cleanQuery.includes('minyak')) cariKategoriBerdekatan('fuel');
@@ -875,6 +873,15 @@
         function hantarLaporan(jenis) {
             alert('Laporan berjaya dihantar: ' + jenis);
             tutupModalLaporan();
+        }
+
+        // REGISTER SERVICE WORKER FOR PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker Registered!', reg.scope))
+                    .catch(err => console.log('Service Worker Registration Failed:', err));
+            });
         }
     </script>
 </body>
