@@ -1,606 +1,332 @@
 <!DOCTYPE html>
-<html lang="ms">
+<html lang="ms" class="dark">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Jalanku - Navigasi & Trafik Malaysia</title>
-
-    <!-- Tetapan Web App / PWA -->
-    <meta name="theme-color" content="#0f172a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Jalanku">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            darkMode: 'class'
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        panda: '#D70F64',
+                        grab: '#00B14F',
+                        shopee: '#EE4D2D',
+                        myblue: '#0F52BA'
+                    }
+                }
+            }
         }
     </script>
-    <!-- FontAwesome Icon -->
+
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Leaflet CSS -->
+
+    <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
+            touch-action: manipulation;
         }
+        /* Glassmorphism effects */
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        /* Hide scrollbars for slick horizontal scroll */
+        
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Custom pulsing marker */
+        
+        .user-location-pulse {
+            width: 18px;
+            height: 18px;
+            background: #3B82F6;
+            border: 3px solid #FFFFFF;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.8);
+            animation: pulse-ring 2s infinite;
+        }
+        
+        @keyframes pulse-ring {
+            0% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 14px rgba(59, 130, 246, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+            }
+        }
+        /* Custom Map Container Height */
         
         #map {
             width: 100%;
             height: 100vh;
-            z-index: 1;
-        }
-        
-        .user-gps-marker {
-            transition: transform 0.3s ease-out;
-        }
-        /* Custom Scrollbar */
-        
-         ::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-         ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.6);
-        }
-        
-         ::-webkit-scrollbar-thumb {
-            background: #10b981;
-            border-radius: 10px;
+            z-index: 0;
         }
     </style>
 </head>
 
-<body class="bg-slate-900 text-white overflow-hidden relative dark">
+<body class="bg-slate-900 text-slate-100 overflow-hidden select-none">
 
-    <!-- 🚀 1. SKRIN PELANCAR / SPLASH SCREEN -->
-    <div id="splash-screen" class="fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-between p-8 transition-opacity duration-700">
-        <div></div>
-
-        <div class="flex flex-col items-center text-center">
-            <div class="relative mb-6">
-                <div class="absolute -inset-2 bg-emerald-500/30 rounded-3xl blur-xl"></div>
-                <div class="relative w-28 h-28 bg-emerald-500 rounded-3xl flex items-center justify-center border-2 border-emerald-400/50 shadow-2xl">
-                    <i class="fa-solid fa-route text-5xl text-slate-950"></i>
-                </div>
-            </div>
-            <h1 class="text-3xl font-extrabold text-white tracking-wide">Jalanku</h1>
-            <p class="text-emerald-400 font-semibold text-sm mt-1">Navigasi Pintar & Trafik Malaysia</p>
-            <p class="text-slate-400 text-xs mt-3 max-w-xs">Panduan perjalanan pantas dengan pengesanan masa nyata dan maklumat insiden lalu lintas.</p>
-        </div>
-
-        <div class="w-full max-w-xs flex flex-col items-center gap-4">
-            <button onclick="mulaAplikasi()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition active:scale-95 text-base cursor-pointer">
-                Mula Perjalanan <i class="fa-solid fa-arrow-right"></i>
-            </button>
-            <span class="text-[11px] text-slate-500">100% Percuma • OpenStreetMap Edition</span>
-        </div>
-    </div>
-
-
-    <!-- 🗺️ 2. APLIKASI UTAMA (HEADER & CARIAN) -->
-    <div class="absolute top-4 left-4 right-4 z-20 flex flex-col lg:flex-row gap-3 pointer-events-none">
-        <!-- Kotak Carian & Logo -->
-        <div class="pointer-events-auto bg-slate-800/90 backdrop-blur-md p-3 rounded-2xl shadow-xl flex flex-col gap-2 w-full lg:w-[480px] border border-slate-700 transition-colors duration-300" id="header-panel">
-            <div class="flex items-center gap-2 md:gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-slate-950 text-xl font-black shrink-0 shadow-md">
-                    <i class="fa-solid fa-location-arrow"></i>
-                </div>
-
-                <div class="flex-1 min-w-0 relative">
-                    <!-- INPUT CARI LOKASI -->
-                    <div class="flex items-center bg-slate-900/80 rounded-xl px-3 border border-slate-700 focus-within:border-emerald-500 transition-colors" id="search-box-ui">
-                        <input type="text" id="search-input" placeholder="Cari tempat di Malaysia..." class="w-full bg-transparent py-2 text-sm text-white focus:outline-none" oninput="handleSearchInput()" onkeypress="handleSearchKey(event)">
-                        <button onclick="cariLokasi()" class="text-emerald-400 hover:text-emerald-300 p-1 cursor-pointer">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                        </button>
-                    </div>
-
-                    <!-- SENARAI CADANGAN (AUTOCOMPLETE) -->
-                    <div id="suggestions-box" class="hidden absolute top-12 left-0 right-0 bg-slate-800/95 border border-slate-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto z-30 divide-y divide-slate-700/50"></div>
-                </div>
-
-                <!-- BUTANG SKRIN PENUH -->
-                <button onclick="tukarSkrinPenuh()" id="fullscreen-btn" class="bg-slate-700 hover:bg-slate-600 p-2.5 rounded-xl text-slate-300 transition shrink-0 cursor-pointer hidden md:block" title="Skrin Penuh">
-                    <i class="fa-solid fa-expand text-lg"></i>
-                </button>
-
-                <!-- BUTANG TUKAR TEMA DARK / LIGHT -->
-                <button onclick="tukarTema()" id="theme-toggle-btn" class="bg-slate-700 hover:bg-slate-600 p-2.5 rounded-xl text-amber-400 transition shrink-0 cursor-pointer" title="Tukar Tema Dark/Light">
-                    <i class="fa-solid fa-moon text-lg" id="theme-icon"></i>
-                </button>
-
-                <!-- BUTANG FOKUS GPS -->
-                <button onclick="fokusLokasiSemasa()" class="bg-slate-700 hover:bg-slate-600 p-2.5 rounded-xl text-emerald-400 transition shrink-0 cursor-pointer" title="Lokasi Semasa">
-                    <i class="fa-solid fa-crosshairs text-lg"></i>
-                </button>
+    <!-- Splash Screen -->
+    <div id="splashScreen" class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 transition-opacity duration-500">
+        <div class="relative flex items-center justify-center mb-6">
+            <div class="w-24 h-24 rounded-3xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center shadow-2xl shadow-blue-500/40 animate-bounce">
+                <i class="fa-solid font-bold fa-location-arrow text-4xl text-white"></i>
             </div>
         </div>
-
-        <!-- Panel Info Navigasi & Kelajuan GPS -->
-        <div class="pointer-events-auto flex flex-wrap gap-3 ml-auto">
-            <!-- PANEL LALUAN NAVIGASI REAL-TIME -->
-            <div id="route-info-box" class="hidden bg-emerald-900/90 backdrop-blur-md border border-emerald-500 px-4 py-2 rounded-2xl flex items-center gap-4 shadow-xl">
-                <div>
-                    <div class="text-[10px] text-emerald-200 uppercase font-semibold flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Navigasi Masa Nyata
-                    </div>
-                    <div class="text-xs font-bold text-white flex items-center gap-2 mt-0.5">
-                        <span id="route-distance"><i class="fa-solid fa-road text-emerald-400"></i> 0 km</span>
-                        <span>•</span>
-                        <span id="route-duration"><i class="fa-solid fa-clock text-amber-400"></i> 0 min</span>
-                        <span>•</span>
-                        <span id="route-traffic-lights"><i class="fa-solid fa-traffic-light text-red-400"></i> 0 Lampu Isyarat</span>
-                    </div>
-                </div>
-                <button onclick="padamLaluanNavigasi()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-2.5 py-1.5 rounded-xl font-bold transition cursor-pointer">
-                    <i class="fa-solid fa-xmark"></i> Batal
-                </button>
-            </div>
-
-            <!-- Panel Kelajuan Sebenar -->
-            <div id="speed-alert-box" class="bg-slate-800/90 backdrop-blur-md border border-slate-700 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-xl transition-all duration-300">
-                <div class="border-4 border-red-500 rounded-full w-12 h-12 flex items-center justify-center bg-white text-slate-900 font-black text-sm shadow-inner">
-                    <span id="speed-limit-val">90</span>
-                </div>
-                <div>
-                    <div class="text-[10px] text-slate-400 uppercase font-semibold" id="speed-label">Kelajuan GPS</div>
-                    <div id="current-speed-display" class="text-sm font-bold text-emerald-400">0 km/j</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- PETA UTAMA -->
-    <div id='map'></div>
-
-    <!-- NOTIS PANDUAN -->
-    <div id="guide-notice" class="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none bg-slate-800/80 backdrop-blur-md border border-slate-700 px-4 py-2 rounded-full text-xs text-slate-300 shadow-lg text-center">
-        <i class="fa-solid fa-location-crosshairs text-emerald-400 mr-1"></i> OpenStreetMap Live • Klik peta untuk menetapkan destinasi
-    </div>
-
-    <!-- PANEL LAPORAN -->
-    <div class="absolute bottom-6 right-6 z-20 flex flex-col gap-3">
-        <button onclick="tunjukModalLaporan()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 transition transform hover:scale-105 cursor-pointer">
-            <i class="fa-solid fa-triangle-exclamation"></i> Lapor Insiden / Banjir
+        <h1 class="text-3xl font-extrabold tracking-tight text-white mb-2">Jalanku <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">MY v2.0</span></h1>
+        <p class="text-slate-400 text-sm mb-8 text-center max-w-xs">Navigasi Pintar, Pengangkutan Awam & Mod Khusus Delivery Rider Malaysia</p>
+        <button onclick="dismissSplash()" class="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold rounded-2xl shadow-lg shadow-blue-600/30 active:scale-95 transition-all">
+            Mula Navigasi <i class="fa-solid fa-arrow-right ml-2"></i>
         </button>
     </div>
 
-    <!-- MODAL LAPORAN -->
-    <div id="incident-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slate-800 border border-slate-700 rounded-3xl p-6 w-full max-w-md shadow-2xl" id="modal-card">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-emerald-400">Lapor Kejadian di Jalan Raya</h3>
-                <button onclick="tutupModalLaporan()" class="text-slate-400 hover:text-white cursor-pointer"><i class="fa-solid fa-xmark text-xl"></i></button>
+    <!-- Main Map Container -->
+    <div id="map"></div>
+
+    <!-- Top Floating Header & Search Bar -->
+    <div class="fixed top-3 left-3 right-3 z-20 max-w-md mx-auto space-y-2">
+        <div class="glass-panel rounded-2xl p-2.5 shadow-xl flex items-center justify-between gap-2">
+            <!-- Search Input Box -->
+            <div class="relative flex-1 flex items-center bg-slate-100 dark:bg-slate-800/90 rounded-xl px-3 py-2 border border-slate-200 dark:border-slate-700/60">
+                <i class="fa-solid fa-magnifying-glass text-slate-400 mr-2 text-sm"></i>
+                <input type="text" id="searchInput" placeholder="Cari lokasi di Malaysia (cth: KLCC, JB Sentral)..." class="bg-transparent border-none outline-none w-full text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400" onkeyup="handleSearchInput(event)">
+                <button onclick="clearSearch()" id="clearBtn" class="hidden text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-circle-xmark text-sm"></i>
+                </button>
             </div>
-            <div class="space-y-3">
-                <button onclick="hantarLaporan('Banjir 🌊')" class="w-full bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 p-3 rounded-xl text-left font-semibold flex items-center gap-3 transition cursor-pointer">
-                    <i class="fa-solid fa-water text-blue-400 text-lg"></i> Jalan Dinaiki Air / Banjir
+
+            <!-- Dark Mode Toggle Button -->
+            <button onclick="toggleDarkMode()" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800/90 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+                <i class="fa-solid fa-moon dark:hidden text-lg"></i>
+                <i class="fa-solid fa-sun hidden dark:block text-amber-400 text-lg"></i>
+            </button>
+
+            <!-- Incident Report Trigger Button -->
+            <button onclick="openIncidentModal()" class="w-10 h-10 rounded-xl bg-red-500/10 dark:bg-red-500/20 text-red-500 flex items-center justify-center hover:bg-red-500/20 transition border border-red-500/30" title="Laporkan Kejadian">
+                <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+            </button>
+        </div>
+
+        <!-- Search Suggestions Dropdown -->
+        <div id="searchSuggestions" class="hidden glass-panel rounded-2xl p-2 shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800"></div>
+
+        <!-- Mode Transport Selector Bar -->
+        <div class="glass-panel rounded-2xl p-1.5 shadow-xl flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
+            <button onclick="setTransportMode('car')" id="mode-car" class="mode-btn flex-1 min-w-[58px] py-2 px-1 rounded-xl flex flex-col items-center justify-center text-blue-500 bg-blue-500/10 border border-blue-500/30 transition">
+                <i class="fa-solid fa-car text-sm mb-1"></i>
+                <span class="text-[10px] font-semibold">Kereta</span>
+            </button>
+            <button onclick="setTransportMode('motorcycle')" id="mode-motorcycle" class="mode-btn flex-1 min-w-[58px] py-2 px-1 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 transition">
+                <i class="fa-solid fa-motorcycle text-sm mb-1"></i>
+                <span class="text-[10px] font-semibold">Motor</span>
+            </button>
+            <button onclick="setTransportMode('transit')" id="mode-transit" class="mode-btn flex-1 min-w-[58px] py-2 px-1 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 transition">
+                <i class="fa-solid fa-bus-simple text-sm mb-1"></i>
+                <span class="text-[10px] font-semibold">Bas/KTM</span>
+            </button>
+            <button onclick="setTransportMode('bicycle')" id="mode-bicycle" class="mode-btn flex-1 min-w-[58px] py-2 px-1 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 transition">
+                <i class="fa-solid fa-bicycle text-sm mb-1"></i>
+                <span class="text-[10px] font-semibold">Basikal</span>
+            </button>
+            <button onclick="setTransportMode('walk')" id="mode-walk" class="mode-btn flex-1 min-w-[58px] py-2 px-1 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 transition">
+                <i class="fa-solid fa-person-walking text-sm mb-1"></i>
+                <span class="text-[10px] font-semibold">Pejalan</span>
+            </button>
+        </div>
+
+        <!-- Delivery Rider Special Modes Switcher -->
+        <div class="glass-panel rounded-2xl p-2 shadow-xl flex items-center justify-between gap-2">
+            <span class="text-[11px] font-bold text-slate-400 px-1 uppercase tracking-wider flex items-center gap-1">
+                <i class="fa-solid fa-helmet-safety text-amber-500"></i> Rider Mode:
+            </span>
+            <div class="flex items-center gap-1.5">
+                <button onclick="toggleRiderMode('foodpanda')" id="rider-foodpanda" class="rider-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-700 bg-slate-800 text-slate-400 hover:border-panda transition">
+                    <span class="text-panda">●</span> Foodpanda
                 </button>
-                <button onclick="hantarLaporan('Kemalangan 🚗💥')" class="w-full bg-red-600/30 hover:bg-red-600/50 border border-red-500/50 p-3 rounded-xl text-left font-semibold flex items-center gap-3 transition cursor-pointer">
-                    <i class="fa-solid fa-car-burst text-red-400 text-lg"></i> Kemalangan Jalan Raya
+                <button onclick="toggleRiderMode('grab')" id="rider-grab" class="rider-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-700 bg-slate-800 text-slate-400 hover:border-grab transition">
+                    <span class="text-grab">●</span> Grab
                 </button>
-                <button onclick="hantarLaporan('Jalan Rosak / Lubang 🕳️')" class="w-full bg-amber-600/30 hover:bg-amber-600/50 border border-amber-600/50 p-3 rounded-xl text-left font-semibold flex items-center gap-3 transition cursor-pointer">
-                    <i class="fa-solid fa-road text-amber-400 text-lg"></i> Jalan Rosak / Lubang Berbahaya
+                <button onclick="toggleRiderMode('shopeefood')" id="rider-shopeefood" class="rider-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-700 bg-slate-800 text-slate-400 hover:border-shopee transition">
+                    <span class="text-shopee">●</span> Shopee
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Right Floating Controls (GPS Center, Speedometer) -->
+    <div class="fixed right-3 top-56 z-20 flex flex-col gap-2">
+        <button onclick="centerUserLocation()" class="w-11 h-11 glass-panel rounded-2xl flex items-center justify-center text-blue-500 shadow-xl active:scale-95 transition">
+            <i class="fa-solid fa-crosshairs text-lg"></i>
+        </button>
 
-    <script>
-        let isDarkMode = true;
-        let tileLayer = null;
+        <!-- Live Speedometer Badge -->
+        <div class="glass-panel rounded-2xl w-11 h-16 flex flex-col items-center justify-center shadow-xl p-1 text-center">
+            <span id="speedValue" class="text-xs font-extrabold text-emerald-400">0</span>
+            <span class="text-[8px] font-bold text-slate-400 uppercase">km/h</span>
+        </div>
+    </div>
 
-        // SUMBER TILE OSM RASMI (100% BEBAS API KEY)
-        const osmStandardTileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    <!-- Rider Delivery Dashboard Overlay (Visible when Rider Mode Active) -->
+    <div id="riderDashboard" class="hidden fixed top-52 left-3 z-20 max-w-[200px] glass-panel rounded-2xl p-3 shadow-2xl border-l-4 border-amber-500 space-y-2 animate-fade-in">
+        <div class="flex items-center justify-between">
+            <span id="riderBrandBadge" class="text-[10px] font-black uppercase px-2 py-0.5 rounded text-white bg-slate-700">Rider Hub</span>
+            <span class="text-[9px] text-emerald-400 font-bold"><i class="fa-solid fa-bolt"></i> Laluan Pintas</span>
+        </div>
+        <div class="space-y-1">
+            <div class="text-[10px] text-slate-400">Anggaran Tambang/Gaji:</div>
+            <div id="riderEarningsEst" class="text-sm font-extrabold text-amber-400">RM 0.00</div>
+        </div>
+        <div class="flex items-center gap-1 pt-1 border-t border-slate-700/50">
+            <button onclick="markRiderPoint('pickup')" class="flex-1 py-1 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 text-[9px] font-bold rounded border border-amber-500/30">
+                <i class="fa-solid fa-store"></i> Ambil
+            </button>
+            <button onclick="markRiderPoint('dropoff')" class="flex-1 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 text-[9px] font-bold rounded border border-blue-500/30">
+                <i class="fa-solid fa-house-user"></i> Hantar
+            </button>
+        </div>
+    </div>
 
-        const map = L.map('map', {
-            zoomControl: false
-        }).setView([3.1390, 101.6869], 13);
+    <!-- Bottom Sliding Drawer: Quick Locations & Route Summary -->
+    <div class="fixed bottom-0 left-0 right-0 z-20 max-w-lg mx-auto p-3">
+        <div class="glass-panel rounded-3xl p-4 shadow-2xl space-y-3 transition-all duration-300 max-h-[45vh] overflow-y-auto no-scrollbar">
 
-        L.control.zoom({
-            position: 'bottomright'
-        }).addTo(map);
+            <!-- Handle Indicator for drawer -->
+            <div class="w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-1"></div>
 
-        tileLayer = L.tileLayer(osmStandardTileUrl, {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
+            <!-- Quick Location Filter Chips -->
+            <div class="space-y-2">
+                <div class="flex items-center justify-between text-xs font-bold text-slate-400">
+                    <span><i class="fa-solid fa-fire text-amber-500 mr-1"></i> Lokasi Popular Malaysia</span>
+                    <span id="activeCategoryName" class="text-[10px] text-blue-400">Semua</span>
+                </div>
 
-        function tukarTema() {
-            isDarkMode = !isDarkMode;
-            const themeIcon = document.getElementById('theme-icon');
-            const mapContainer = document.getElementById('map');
+                <!-- Category Buttons -->
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+                    <button onclick="filterQuickLocations('all')" class="cat-btn px-3 py-1 rounded-xl text-xs font-semibold bg-blue-600 text-white shadow-sm">Semua</button>
+                    <button onclick="filterQuickLocations('kl')" class="cat-btn px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200">KL & Selangor</button>
+                    <button onclick="filterQuickLocations('transit')" class="cat-btn px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200">Stesen KTM/LRT</button>
+                    <button onclick="filterQuickLocations('airport')" class="cat-btn px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200">Lapangan Terbang</button>
+                    <button onclick="filterQuickLocations('shopping')" class="cat-btn px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200">Mall</button>
+                </div>
 
-            if (isDarkMode) {
-                mapContainer.style.filter = 'invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%)';
-                themeIcon.className = 'fa-solid fa-moon text-lg text-amber-400';
-            } else {
-                mapContainer.style.filter = 'none';
-                themeIcon.className = 'fa-solid fa-sun text-lg text-amber-500';
-            }
-        }
-        // Pasang penapis gelap asal secara lalai
-        document.getElementById('map').style.filter = 'invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%)';
+                <!-- Quick Location Grid Cards -->
+                <div id="quickLocationsGrid" class="grid grid-cols-2 gap-2 pt-1">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
 
-        function tukarSkrinPenuh() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else {
-                if (document.exitFullscreen) document.exitFullscreen();
-            }
-        }
-
-        function mulaAplikasi() {
-            const splash = document.getElementById('splash-screen');
-            splash.classList.add('opacity-0');
-            setTimeout(() => {
-                splash.classList.add('hidden');
-                map.invalidateSize();
-            }, 700);
-
-            mulaMembacaGPSRealTime();
-        }
-
-        let markerLokasiSemasa = null;
-        let userCustomPin = null;
-        let routePolyline = null;
-        let trafficLightMarkers = [];
-        let searchTimeout = null;
-
-        let activeDestLat = null;
-        let activeDestLng = null;
-        let watchId = null;
-        let isFirstGPSFix = true;
-
-        // DATA INSIDEN LOKAL
-        const infoInsiden = [{
-            lat: 3.15,
-            lng: 101.69,
-            type: 'Banjir 🌊',
-            desc: 'Air bertakung setinggi 0.3m di lorong kiri.'
-        }, {
-            lat: 3.12,
-            lng: 101.71,
-            type: 'Kemalangan 🚗💥',
-            desc: 'Laluan perlahan akibat pelanggaran kecil.'
-        }];
-
-        function paparInsiden(item) {
-            const customIcon = L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div style="background-color: #ef4444; color: white; padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"><i class="fa-solid fa-triangle-exclamation"></i></div>`,
-                iconSize: [32, 32],
-                iconAnchor: [16, 16]
-            });
-
-            L.marker([item.lat, item.lng], {
-                    icon: customIcon
-                })
-                .addTo(map)
-                .bindPopup(`<b>${item.type}</b><br>${item.desc}`);
-        }
-
-        infoInsiden.forEach(item => paparInsiden(item));
-
-        // GPS WATCHPOSITION
-        function mulaMembacaGPSRealTime() {
-            if (navigator.geolocation) {
-                watchId = navigator.geolocation.watchPosition(
-                    position => {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        const speed = position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0;
-                        const heading = position.coords.heading || 0;
-
-                        document.getElementById('current-speed-display').innerText = speed + ' km/j';
-                        semakAmaranKelajuan(speed);
-
-                        if (markerLokasiSemasa) {
-                            markerLokasiSemasa.setLatLng([lat, lng]);
-                        } else {
-                            const iconLokasi = L.divIcon({
-                                className: 'user-gps-marker',
-                                html: `<div id="user-heading-icon" style="background-color: #10b981; color: #0f172a; padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; box-shadow: 0 0 15px rgba(16, 185, 129, 0.9); border: 2px solid white; transform: rotate(${heading}deg);"><i class="fa-solid fa-location-arrow"></i></div>`,
-                                iconSize: [38, 38],
-                                iconAnchor: [19, 19]
-                            });
-
-                            markerLokasiSemasa = L.marker([lat, lng], {
-                                icon: iconLokasi
-                            }).addTo(map);
-                            markerLokasiSemasa.bindPopup("<b>Lokasi Semasa Anda (Live)</b>");
-                        }
-
-                        if (isFirstGPSFix) {
-                            map.setView([lat, lng], 16);
-                            isFirstGPSFix = false;
-                        }
-
-                        if (activeDestLat && activeDestLng) {
-                            kemaskiniLaluanNavigasi(lat, lng, activeDestLat, activeDestLng);
-                        }
-                    },
-                    error => console.warn("GPS Warning:", error.message), {
-                        enableHighAccuracy: true,
-                        maximumAge: 1000,
-                        timeout: 10000
-                    }
-                );
-            }
-        }
-
-        function fokusLokasiSemasa() {
-            if (markerLokasiSemasa) {
-                const pos = markerLokasiSemasa.getLatLng();
-                map.setView([pos.lat, pos.lng], 16);
-            } else {
-                alert('Mengesan GPS... Sila pastikan kebenaran lokasi dibenarkan pada pelayar web anda.');
-            }
-        }
-
-        function semakAmaranKelajuan(speed) {
-            const hadLaju = 90;
-            const kotakAmaran = document.getElementById('speed-alert-box');
-            if (speed > hadLaju) {
-                kotakAmaran.classList.add('bg-red-900/90', 'border-red-500', 'animate-pulse');
-            } else {
-                kotakAmaran.classList.remove('bg-red-900/90', 'border-red-500', 'animate-pulse');
-            }
-        }
-
-        map.on('click', function(e) {
-            const lat = e.latlng.lat;
-            const lng = e.latlng.lng;
-            letakPinDestinasi(lat, lng, "Lokasi Pilihan");
-        });
-
-        function letakPinDestinasi(lat, lng, namaTempat) {
-            if (userCustomPin) map.removeLayer(userCustomPin);
-
-            const pinIcon = L.divIcon({
-                className: 'custom-pin-icon',
-                html: `<div style="background-color: #3b82f6; color: white; padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; box-shadow: 0 0 15px rgba(59, 130, 246, 0.8); border: 2px solid white;"><i class="fa-solid fa-location-dot"></i></div>`,
-                iconSize: [36, 36],
-                iconAnchor: [18, 18]
-            });
-
-            userCustomPin = L.marker([lat, lng], {
-                icon: pinIcon
-            }).addTo(map);
-
-            const popupContent = `
-                <div style="font-family: sans-serif; text-align: center; padding: 4px; color: #0f172a;">
-                    <b style="font-size: 14px;">${namaTempat}</b><br>
-                    <span style="font-size: 11px; color: #64748b;">Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}</span><br>
-                    <button onclick="mulaNavigasi(${lat}, ${lng})" style="margin-top: 8px; background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                        <i class="fa-solid fa-diamond-turn-right"></i> Mula Navigasi
+            <!-- Active Navigation Info Box (Hidden until route calculated) -->
+            <div id="routeSummaryBox" class="hidden bg-slate-800/90 dark:bg-slate-900/90 rounded-2xl p-3 border border-blue-500/30 space-y-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+                            <i id="routeModeIcon" class="fa-solid fa-car"></i>
+                        </div>
+                        <div>
+                            <div id="routeDestName" class="text-xs font-bold text-slate-100 truncate max-w-[180px]">Destinasi</div>
+                            <div id="routeModeLabel" class="text-[10px] text-slate-400">Mod Kereta</div>
+                        </div>
+                    </div>
+                    <button onclick="clearRoute()" class="text-xs text-red-400 hover:text-red-300 font-bold px-2 py-1 rounded-lg bg-red-500/10">
+                        Batal
                     </button>
                 </div>
-            `;
 
-            userCustomPin.bindPopup(popupContent).openPopup();
-        }
+                <div class="grid grid-cols-3 gap-2 text-center pt-2 border-t border-slate-700/60">
+                    <div class="bg-slate-800/50 p-2 rounded-xl">
+                        <div class="text-[9px] text-slate-400 uppercase">Jarak</div>
+                        <div id="routeDistance" class="text-sm font-extrabold text-blue-400">- km</div>
+                    </div>
+                    <div class="bg-slate-800/50 p-2 rounded-xl">
+                        <div class="text-[9px] text-slate-400 uppercase">Masa</div>
+                        <div id="routeDuration" class="text-sm font-extrabold text-emerald-400">- min</div>
+                    </div>
+                    <div class="bg-slate-800/50 p-2 rounded-xl">
+                        <div class="text-[9px] text-slate-400 uppercase">Lampu Isyarat</div>
+                        <div id="routeTrafficLights" class="text-sm font-extrabold text-amber-400">~2</div>
+                    </div>
+                </div>
 
-        function mulaNavigasi(destLat, destLng) {
-            if (!markerLokasiSemasa) {
-                alert('Mengesan lokasi GPS anda...');
-                return;
-            }
+                <!-- Transit Step Guidance (Visible for Bas / KTM) -->
+                <div id="transitStepsGuide" class="hidden pt-2 border-t border-slate-700/60 text-xs space-y-1">
+                    <div class="font-bold text-amber-400 flex items-center gap-1">
+                        <i class="fa-solid fa-train-subway"></i> Panduan Transit Awam:
+                    </div>
+                    <div id="transitDetailsText" class="text-[11px] text-slate-300 leading-snug">
+                        Naik Bas RapidKL / KTM Komuter berdekatan. Bertukar di stesen pertukaran utama.
+                    </div>
+                </div>
+            </div>
 
-            activeDestLat = destLat;
-            activeDestLng = destLng;
+        </div>
+    </div>
 
-            const startLat = markerLokasiSemasa.getLatLng().lat;
-            const startLng = markerLokasiSemasa.getLatLng().lng;
+    <!-- Incident Reporting Modal -->
+    <div id="incidentModal" class="hidden fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl border border-slate-700">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+                <h3 class="font-extrabold text-base text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation text-red-500"></i> Laporkan Kejadian
+                </h3>
+                <button onclick="closeIncidentModal()" class="text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
 
-            kemaskiniLaluanNavigasi(startLat, startLng, destLat, destLng);
-            if (userCustomPin) userCustomPin.closePopup();
-        }
+            <p class="text-xs text-slate-300">Pilih jenis kejadian berdekatan lokasi anda untuk amaran pemandu lain:</p>
 
-        // ENJIN LALUAN OSRM (100% PERCUMA)
-        function kemaskiniLaluanNavigasi(sLat, sLng, dLat, dLng) {
-            const url = `https://router.project-osrm.org/route/v1/driving/${sLng},${sLat};${dLng},${dLat}?overview=full&geometries=geojson&steps=true`;
+            <div class="grid grid-cols-2 gap-2.5">
+                <button onclick="submitIncident('Banjir Kilat')" class="p-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex flex-col items-center gap-2 text-center transition">
+                    <i class="fa-solid fa-water text-2xl text-blue-400"></i>
+                    <span class="text-xs font-bold text-slate-200">Banjir Kilat</span>
+                </button>
+                <button onclick="submitIncident('Kemalangan')" class="p-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex flex-col items-center gap-2 text-center transition">
+                    <i class="fa-solid fa-car-burst text-2xl text-red-400"></i>
+                    <span class="text-xs font-bold text-slate-200">Kemalangan</span>
+                </button>
+                <button onclick="submitIncident('Jalan Berlubang')" class="p-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex flex-col items-center gap-2 text-center transition">
+                    <i class="fa-solid fa-road-spikes text-2xl text-amber-400"></i>
+                    <span class="text-xs font-bold text-slate-200">Jalan Berlubang</span>
+                </button>
+                <button onclick="submitIncident('Kesesakan Teruk')" class="p-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex flex-col items-center gap-2 text-center transition">
+                    <i class="fa-solid fa-traffic-light text-2xl text-purple-400"></i>
+                    <span class="text-xs font-bold text-slate-200">Kesesakan Teruk</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
-            fetch(url)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.routes && data.routes.length > 0) {
-                        const route = data.routes[0];
-                        const coordinates = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-
-                        if (routePolyline) map.removeLayer(routePolyline);
-
-                        routePolyline = L.polyline(coordinates, {
-                            color: '#2563eb',
-                            weight: 6,
-                            opacity: 0.8,
-                            lineJoin: 'round'
-                        }).addTo(map);
-
-                        const distanceKm = (route.distance / 1000).toFixed(1);
-                        const durationMin = Math.round(route.duration / 60);
-
-                        document.getElementById('route-distance').innerHTML = `<i class="fa-solid fa-road text-emerald-400"></i> ${distanceKm} km`;
-                        document.getElementById('route-duration').innerHTML = `<i class="fa-solid fa-clock text-amber-400"></i> ${durationMin} min`;
-
-                        cariLampuIsyarat(sLat, sLng, dLat, dLng);
-                        document.getElementById('route-info-box').classList.remove('hidden');
-                    }
-                })
-                .catch(err => console.error('Ralat Routing OSRM:', err));
-        }
-
-        // CARIAN OVERPASS API (100% PERCUMA)
-        function cariLampuIsyarat(sLat, sLng, dLat, dLng) {
-            trafficLightMarkers.forEach(m => map.removeLayer(m));
-            trafficLightMarkers = [];
-
-            const minLat = Math.min(sLat, dLat) - 0.01;
-            const maxLat = Math.max(sLat, dLat) + 0.01;
-            const minLng = Math.min(sLng, dLng) - 0.01;
-            const maxLng = Math.max(sLng, dLng) + 0.01;
-
-            const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];node["highway"="traffic_signals"](${minLat},${minLng},${maxLat},${maxLng});out;`;
-
-            fetch(overpassUrl)
-                .then(res => res.json())
-                .then(data => {
-                    let totalSignals = 0;
-                    if (data && data.elements && routePolyline) {
-                        data.elements.forEach(signal => {
-                            if (isPointNearPolyline([signal.lat, signal.lon], routePolyline.getLatLngs(), 0.0005)) {
-                                totalSignals++;
-                                const signalIcon = L.divIcon({
-                                    className: 'traffic-light-icon',
-                                    html: `<div style="background-color: #ef4444; color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 1.5px solid white;"><i class="fa-solid fa-traffic-light"></i></div>`,
-                                    iconSize: [18, 18],
-                                    iconAnchor: [9, 9]
-                                });
-
-                                const marker = L.marker([signal.lat, signal.lon], {
-                                    icon: signalIcon
-                                }).addTo(map);
-                                trafficLightMarkers.push(marker);
-                            }
-                        });
-                    }
-                    document.getElementById('route-traffic-lights').innerHTML = `<i class="fa-solid fa-traffic-light text-red-400"></i> ${totalSignals} Lampu Isyarat`;
-                })
-                .catch(() => {
-                    document.getElementById('route-traffic-lights').innerHTML = `<i class="fa-solid fa-traffic-light text-red-400"></i> N/A`;
-                });
-        }
-
-        function isPointNearPolyline(point, polylineCoords, threshold) {
-            for (let i = 0; i < polylineCoords.length; i++) {
-                const dist = Math.hypot(point[0] - polylineCoords[i].lat, point[1] - polylineCoords[i].lng);
-                if (dist < threshold) return true;
-            }
-            return false;
-        }
-
-        function padamLaluanNavigasi() {
-            activeDestLat = null;
-            activeDestLng = null;
-            if (routePolyline) {
-                map.removeLayer(routePolyline);
-                routePolyline = null;
-            }
-            trafficLightMarkers.forEach(m => map.removeLayer(m));
-            trafficLightMarkers = [];
-            document.getElementById('route-info-box').classList.add('hidden');
-        }
-
-        function handleSearchInput() {
-            clearTimeout(searchTimeout);
-            const query = document.getElementById('search-input').value.trim();
-            const suggestionsBox = document.getElementById('suggestions-box');
-
-            if (query.length < 3) {
-                suggestionsBox.classList.add('hidden');
-                return;
-            }
-
-            searchTimeout = setTimeout(() => {
-                const searchQuery = query.toLowerCase().includes('malaysia') ? query : query + ', Malaysia';
-                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`, {
-                        headers: {
-                            'Accept-Language': 'ms,en'
-                        }
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        suggestionsBox.innerHTML = '';
-                        if (data && data.length > 0) {
-                            data.slice(0, 5).forEach(place => {
-                                const item = document.createElement('div');
-                                item.className = 'p-3 hover:bg-slate-700/80 cursor-pointer text-xs text-slate-200 transition flex items-center gap-2';
-                                item.innerHTML = `<i class="fa-solid fa-location-dot text-emerald-400"></i> <span class="truncate">${place.display_name}</span>`;
-                                item.onclick = () => {
-                                    document.getElementById('search-input').value = place.display_name.split(',')[0];
-                                    suggestionsBox.classList.add('hidden');
-                                    map.setView([place.lat, place.lon], 15);
-                                    letakPinDestinasi(parseFloat(place.lat), parseFloat(place.lon), place.display_name.split(',')[0]);
-                                };
-                                suggestionsBox.appendChild(item);
-                            });
-                            suggestionsBox.classList.remove('hidden');
-                        } else {
-                            suggestionsBox.classList.add('hidden');
-                        }
-                    })
-                    .catch(err => console.error(err));
-            }, 300);
-        }
-
-        function handleSearchKey(event) {
-            if (event.key === 'Enter') {
-                cariLokasi();
-            }
-        }
-
-        // CARIAN NOMINATIM (100% PERCUMA)
-        function cariLokasi() {
-            const query = document.getElementById('search-input').value.trim();
-            if (!query) return;
-
-            const searchQuery = query.toLowerCase().includes('malaysia') ? query : query + ', Malaysia';
-
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`, {
-                    headers: {
-                        'Accept-Language': 'ms,en'
-                    }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data && data.length > 0) {
-                        const lat = parseFloat(data[0].lat);
-                        const lng = parseFloat(data[0].lon);
-                        const displayName = data[0].display_name.split(',')[0];
-
-                        map.setView([lat, lng], 15);
-                        letakPinDestinasi(lat, lng, displayName);
-                        document.getElementById('suggestions-box').classList.add('hidden');
-                    } else {
-                        alert('Lokasi tidak dijumpai.');
-                    }
-                })
-                .catch(err => alert('Gagal mencari lokasi. Sila cuba lagi.'));
-        }
-
-        function tunjukModalLaporan() {
-            document.getElementById('incident-modal').classList.remove('hidden');
-        }
-
-        function tutupModalLaporan() {
-            document.getElementById('incident-modal').classList.add('hidden');
-        }
-
-        function hantarLaporan(jenis) {
-            const pusatPeta = map.getCenter();
-            const latBaru = userCustomPin ? userCustomPin.getLatLng().lat : (markerLokasiSemasa ? markerLokasiSemasa.getLatLng().lat : pusatPeta.lat);
-            const lngBaru = userCustomPin ? userCustomPin.getLatLng().lng : (markerLokasiSemasa ? markerLokasiSemasa.getLatLng().lng : pusatPeta.lng);
-
-            paparInsiden({
-                lat: latBaru,
-                lng: lngBaru,
-                type: jenis,
-                desc: 'Dilaporkan oleh pengguna.'
-            });
-
-            alert('Laporan berjaya dihantar: ' + jenis + '. Terima kasih!');
-            tutupModalLaporan();
-        }
-    </script>
-</body>
-
-</html>
+    <!-- Notification Toast Box -->
+    <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-[10001] hidden px-4 py-2.5 rounded-2xl bg-slate-800/95 text-white text-xs font-bold shadow-2xl border border-slate-700 flex items-center gap-2">
+        <i id="toastIcon" class="
