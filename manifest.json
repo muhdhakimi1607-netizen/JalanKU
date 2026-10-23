@@ -2,12 +2,12 @@
     "short_name": "Jalanku",
     "name": "Jalanku - Navigasi & Trafik Malaysia",
     "icons": [{
-            "src": "https://cdn-icons-png.flaticon.com/512/854/854878.png",
+            "src": "logo.png",
             "type": "image/png",
             "sizes": "192x192"
         },
         {
-            "src": "https://cdn-icons-png.flaticon.com/512/854/854878.png",
+            "src": "logo.png",
             "type": "image/png",
             "sizes": "512x512"
         }
